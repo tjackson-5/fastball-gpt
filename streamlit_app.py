@@ -2,7 +2,8 @@
 # streamlit_app.py
 
 import streamlit as st
-from fastball_lite import generate_pnl_forecast, apply_experience_curve
+from fastball_lite import generate_pnl_forecast, apply_experience_curve, apply_half_life
+from math import log, exp
 
 st.title("Fastball Lite Dashboard")
 
@@ -34,3 +35,21 @@ if st.button("Calculate Experience Curve Savings"):
     new_cost = apply_experience_curve(initial_cost, initial_ct, target_ct, learning_param)
     st.success(f"New Predicted Unit Cost: ${new_cost:,.2f}")
     st.caption("Based on experience curve dynamics relative to lead time reduction.")
+
+# --- Learning Half-Life Forecaster ---
+st.header("Learning Half-Life Forecaster")
+
+metric_label = st.text_input("Metric to Model (e.g., Lead Time, OEE)", "Lead Time")
+d0 = st.number_input("Current Value", value=20.0)
+dmin = st.number_input("Ideal Minimum", value=8.0)
+cycles = st.slider("Number of Improvement Cycles", 1, 12, 4)
+maturity = st.selectbox("Hoshin Kanri Maturity Level (Likert 1–5)", [1, 2, 3, 4, 5])
+
+# Half-life mapping (cycles to halve ignorance)
+half_life_lookup = {1: 6, 2: 4, 3: 3, 4: 2, 5: 1}
+hl = half_life_lookup[maturity]
+
+if st.button("Forecast Learning"):
+    projected = dmin + (d0 - dmin) * exp(-log(2) * cycles / hl)
+    st.success(f"Projected {metric_label} after {cycles} cycles: {projected:.2f}")
+    st.caption(f"Assumes {100 * (1 - 2**(-1 / hl)):.1f}% ignorance reduction per cycle at maturity level {maturity}.")
